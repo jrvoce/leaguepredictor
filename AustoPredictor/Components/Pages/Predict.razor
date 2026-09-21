@@ -37,6 +37,7 @@
                 <tr>
                     <th>Position</th>
                     <th>Team</th>
+                    <th>Designation</th>
                 </tr>
             </thead>
             <tbody>
@@ -58,6 +59,22 @@
                                     @foreach (var team in GetAvailableTeams(position))
                                     {
                                         <option value="@team.Id">@team.Name</option>
+                                    }
+                                </select>
+                            }
+                        </td>
+                        <td>
+                            @if (selectedPlayer.IsLocked)
+                            {
+                                @GetDesignationAbbreviation(positionToDesignation.GetValueOrDefault(position))
+                            }
+                            else
+                            {
+                                <select value="@((int)positionToDesignation.GetValueOrDefault(position))"
+                                        @onchange="e => OnDesignationChanged(position, e)">
+                                    @foreach (var designation in GetAvailableDesignations(position))
+                                    {
+                                        <option value="@((int)designation)">@GetDesignationAbbreviation(designation)</option>
                                     }
                                 </select>
                             }
@@ -87,11 +104,17 @@
 
     // position (1-10) -> teamId
     private Dictionary<int, int?> positionToTeamId = new();
+    // position (1-10) -> designation
+    private Dictionary<int, PredictionDesignation> positionToDesignation = new();
 
     private string? statusMessage;
     private bool saveSucceeded;
 
-    private bool IsComplete => positionToTeamId.Count == 10 && positionToTeamId.Values.All(v => v.HasValue);
+    private bool IsComplete =>
+        positionToTeamId.Count == 10 &&
+        positionToTeamId.Values.All(v => v.HasValue) &&
+        positionToDesignation.Values.Count(v => v == PredictionDesignation.Champion) == 1 &&
+        positionToDesignation.Values.Count(v => v == PredictionDesignation.RunnerUp) == 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -108,6 +131,7 @@
             selectedPlayerId = null;
             selectedPlayer = null;
             positionToTeamId.Clear();
+            positionToDesignation.Clear();
             return;
         }
 
@@ -115,7 +139,8 @@
         selectedPlayer = players.FirstOrDefault(p => p.Id == playerId);
 
         var existing = await PredictionService.GetPredictionsForPlayerAsync(playerId);
-        positionToTeamId = existing.ToDictionary(kvp => kvp.Value, kvp => (int?)kvp.Key);
+        positionToTeamId = existing.ToDictionary(kvp => kvp.Value.PredictedPosition, kvp => (int?)kvp.Key);
+        positionToDesignation = existing.ToDictionary(kvp => kvp.Value.PredictedPosition, kvp => kvp.Value.Designation);
     }
 
     private void OnTeamChanged(int position, ChangeEventArgs e)
@@ -128,6 +153,18 @@
         else
         {
             positionToTeamId[position] = teamId;
+        }
+    }
+
+    private void OnDesignationChanged(int position, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value) && Enum.IsDefined(typeof(PredictionDesignation), value))
+        {
+            positionToDesignation[position] = (PredictionDesignation)value;
+        }
+        else
+        {
+            positionToDesignation.Remove(position);
         }
     }
 
@@ -144,6 +181,25 @@
     private string GetTeamName(int? teamId)
         => teamId.HasValue ? teams.FirstOrDefault(t => t.Id == teamId.Value)?.Name ?? "" : "";
 
+    private IEnumerable<PredictionDesignation> GetAvailableDesignations(int position)
+    {
+        var usedElsewhere = positionToDesignation
+            .Where(kvp => kvp.Key != position)
+            .Select(kvp => kvp.Value)
+            .ToHashSet();
+
+        return Enum.GetValues<PredictionDesignation>()
+            .Where(designation => designation == PredictionDesignation.None || !usedElsewhere.Contains(designation));
+    }
+
+    private static string GetDesignationAbbreviation(PredictionDesignation designation)
+        => designation switch
+        {
+            PredictionDesignation.Champion => "C",
+            PredictionDesignation.RunnerUp => "RU",
+            _ => "-- None --",
+        };
+
     private async Task Save()
     {
         if (selectedPlayerId is null || !IsComplete)
@@ -151,7 +207,9 @@
             return;
         }
 
-        var predictions = positionToTeamId.ToDictionary(kvp => kvp.Value!.Value, kvp => kvp.Key);
+        var predictions = positionToTeamId.ToDictionary(
+            kvp => kvp.Value!.Value,
+            kvp => (kvp.Key, positionToDesignation.GetValueOrDefault(kvp.Key)));
         var result = await PredictionService.SavePredictionsAsync(selectedPlayerId.Value, predictions);
 
         saveSucceeded = result == PredictionService.SaveResult.Success;
@@ -159,7 +217,7 @@
         {
             PredictionService.SaveResult.Success => "Your prediction has been saved.",
             PredictionService.SaveResult.PlayerLocked => "Your selection is locked and can no longer be changed.",
-            PredictionService.SaveResult.InvalidSelection => "Every team must be used exactly once before saving.",
+            PredictionService.SaveResult.InvalidSelection => "Use every team exactly once, with one Champion and one Runner Up.",
             _ => "Something went wrong saving your prediction. Please try again.",
         };
 
