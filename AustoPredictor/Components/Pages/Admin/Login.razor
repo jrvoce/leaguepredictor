@@ -1,0 +1,35 @@
+@page "/admin/login"
+@layout Layout.MainLayout
+
+<PageTitle>Admin login</PageTitle>
+
+<div class="admin-login">
+    <h1>Admin login</h1>
+
+    @if (HasError)
+    {
+        <p class="error-message">Incorrect password. Please try again.</p>
+    }
+
+    <form method="post" action="/api/admin/login">
+        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autofocus required />
+        <button type="submit">Log in</button>
+    </form>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    private bool HasError => Error == "1";
+
+    protected override void OnInitialized()
+    {
+        ReturnUrl ??= "/admin";
+    }
+}

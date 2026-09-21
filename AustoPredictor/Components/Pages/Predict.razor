@@ -1,0 +1,171 @@
+@page "/predict"
+@rendermode InteractiveServer
+@using AustoPredictor.Data.Entities
+@inject PlayerService PlayerService
+@inject PredictionService PredictionService
+
+<PageTitle>Make your prediction</PageTitle>
+
+<h1>Predict the Gallagher Premiership</h1>
+<p>Pick who you are, then choose which team finishes in each league position.</p>
+
+<div class="predict-page">
+    <label for="player-select">I am:</label>
+    <select id="player-select" value="@selectedPlayerId" @onchange="OnPlayerChanged">
+        <option value="">-- Choose your name --</option>
+        @foreach (var player in players)
+        {
+            <option value="@player.Id">@player.Name</option>
+        }
+    </select>
+
+    @if (selectedPlayer is not null)
+    {
+        @if (selectedPlayer.IsLocked)
+        {
+            <p class="locked-message">
+                Your prediction is locked and can no longer be changed@(selectedPlayer.LockedAtUtc is not null ? $" (locked {selectedPlayer.LockedAtUtc:d MMM yyyy})" : "").
+            </p>
+        }
+        else
+        {
+            <p>Assign each of the 10 teams to a final position. Every team must be used exactly once.</p>
+        }
+
+        <table class="predict-table">
+            <thead>
+                <tr>
+                    <th>Position</th>
+                    <th>Team</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 1; i <= 10; i++)
+                {
+                    var position = i;
+                    <tr>
+                        <td>@position</td>
+                        <td>
+                            @if (selectedPlayer.IsLocked)
+                            {
+                                @GetTeamName(positionToTeamId.GetValueOrDefault(position))
+                            }
+                            else
+                            {
+                                <select value="@positionToTeamId.GetValueOrDefault(position)"
+                                        @onchange="e => OnTeamChanged(position, e)">
+                                    <option value="">-- Select team --</option>
+                                    @foreach (var team in GetAvailableTeams(position))
+                                    {
+                                        <option value="@team.Id">@team.Name</option>
+                                    }
+                                </select>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (!selectedPlayer.IsLocked)
+        {
+            <button @onclick="Save" disabled="@(!IsComplete)">Save prediction</button>
+
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <p class="@(saveSucceeded ? "success-message" : "error-message")">@statusMessage</p>
+            }
+        }
+    }
+</div>
+
+@code {
+    private List<Player> players = new();
+    private List<Team> teams = new();
+    private int? selectedPlayerId;
+    private Player? selectedPlayer;
+
+    // position (1-10) -> teamId
+    private Dictionary<int, int?> positionToTeamId = new();
+
+    private string? statusMessage;
+    private bool saveSucceeded;
+
+    private bool IsComplete => positionToTeamId.Count == 10 && positionToTeamId.Values.All(v => v.HasValue);
+
+    protected override async Task OnInitializedAsync()
+    {
+        players = await PlayerService.GetAllPlayersAsync();
+        teams = await PredictionService.GetTeamsAsync();
+    }
+
+    private async Task OnPlayerChanged(ChangeEventArgs e)
+    {
+        statusMessage = null;
+        var value = e.Value?.ToString();
+        if (string.IsNullOrEmpty(value) || !int.TryParse(value, out var playerId))
+        {
+            selectedPlayerId = null;
+            selectedPlayer = null;
+            positionToTeamId.Clear();
+            return;
+        }
+
+        selectedPlayerId = playerId;
+        selectedPlayer = players.FirstOrDefault(p => p.Id == playerId);
+
+        var existing = await PredictionService.GetPredictionsForPlayerAsync(playerId);
+        positionToTeamId = existing.ToDictionary(kvp => kvp.Value, kvp => (int?)kvp.Key);
+    }
+
+    private void OnTeamChanged(int position, ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        if (string.IsNullOrEmpty(value) || !int.TryParse(value, out var teamId))
+        {
+            positionToTeamId.Remove(position);
+        }
+        else
+        {
+            positionToTeamId[position] = teamId;
+        }
+    }
+
+    private IEnumerable<Team> GetAvailableTeams(int position)
+    {
+        var usedElsewhere = positionToTeamId
+            .Where(kvp => kvp.Key != position && kvp.Value.HasValue)
+            .Select(kvp => kvp.Value!.Value)
+            .ToHashSet();
+
+        return teams.Where(t => !usedElsewhere.Contains(t.Id));
+    }
+
+    private string GetTeamName(int? teamId)
+        => teamId.HasValue ? teams.FirstOrDefault(t => t.Id == teamId.Value)?.Name ?? "" : "";
+
+    private async Task Save()
+    {
+        if (selectedPlayerId is null || !IsComplete)
+        {
+            return;
+        }
+
+        var predictions = positionToTeamId.ToDictionary(kvp => kvp.Value!.Value, kvp => kvp.Key);
+        var result = await PredictionService.SavePredictionsAsync(selectedPlayerId.Value, predictions);
+
+        saveSucceeded = result == PredictionService.SaveResult.Success;
+        statusMessage = result switch
+        {
+            PredictionService.SaveResult.Success => "Your prediction has been saved.",
+            PredictionService.SaveResult.PlayerLocked => "Your selection is locked and can no longer be changed.",
+            PredictionService.SaveResult.InvalidSelection => "Every team must be used exactly once before saving.",
+            _ => "Something went wrong saving your prediction. Please try again.",
+        };
+
+        if (saveSucceeded)
+        {
+            selectedPlayer = await PlayerService.GetPlayerAsync(selectedPlayerId.Value);
+        }
+    }
+}

@@ -1,0 +1,120 @@
+@page "/admin"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using AustoPredictor.Data.Entities
+@inject PlayerService PlayerService
+
+<PageTitle>Admin</PageTitle>
+
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Admin</h1>
+        <form method="post" action="/api/admin/logout">
+            <button type="submit" class="link-button">Log out</button>
+        </form>
+    </div>
+
+    <section class="add-player">
+        <h2>Add a player</h2>
+        <div class="add-player-form">
+            <input type="text" placeholder="Player name" @bind="newPlayerName" @bind:event="oninput"
+                   @onkeydown="OnNewPlayerKeyDown" />
+            <button @onclick="AddPlayer" disabled="@string.IsNullOrWhiteSpace(newPlayerName)">Add player</button>
+        </div>
+        @if (!string.IsNullOrEmpty(addPlayerError))
+        {
+            <p class="error-message">@addPlayerError</p>
+        }
+    </section>
+
+    <section class="players-list">
+        <h2>Players (@players.Count)</h2>
+
+        @if (players.Count == 0)
+        {
+            <p>No players added yet.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Prediction status</th>
+                        <th>Locked?</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var player in players)
+                    {
+                        <tr>
+                            <td>@player.Name</td>
+                            <td>@(predictionCounts.GetValueOrDefault(player.Id, 0) == 10 ? "Submitted" : "Not submitted")</td>
+                            <td>@(player.IsLocked ? "Locked" : "Open")</td>
+                            <td>
+                                <button @onclick="() => ToggleLock(player)">
+                                    @(player.IsLocked ? "Unlock" : "Lock")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+</div>
+
+@code {
+    private List<Player> players = new();
+    private Dictionary<int, int> predictionCounts = new();
+    private string newPlayerName = string.Empty;
+    private string? addPlayerError;
+
+    [Inject]
+    private PredictionService PredictionService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPlayersAsync();
+    }
+
+    private async Task LoadPlayersAsync()
+    {
+        players = await PlayerService.GetAllPlayersAsync();
+        predictionCounts.Clear();
+        foreach (var player in players)
+        {
+            var predictions = await PredictionService.GetPredictionsForPlayerAsync(player.Id);
+            predictionCounts[player.Id] = predictions.Count;
+        }
+    }
+
+    private async Task AddPlayer()
+    {
+        addPlayerError = null;
+        var added = await PlayerService.AddPlayerAsync(newPlayerName);
+        if (added is null)
+        {
+            addPlayerError = $"Could not add \"{newPlayerName}\" — check the name isn't empty or already in use.";
+            return;
+        }
+
+        newPlayerName = string.Empty;
+        await LoadPlayersAsync();
+    }
+
+    private async Task OnNewPlayerKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(newPlayerName))
+        {
+            await AddPlayer();
+        }
+    }
+
+    private async Task ToggleLock(Player player)
+    {
+        await PlayerService.SetLockedAsync(player.Id, !player.IsLocked);
+        await LoadPlayersAsync();
+    }
+}

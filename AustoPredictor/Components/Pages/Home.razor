@@ -1,0 +1,23 @@
+@page "/"
+
+<PageTitle>AustoPredictor</PageTitle>
+
+<h1>AustoPredictor</h1>
+
+<p>
+    Predict the final table of the Gallagher Premiership. Pick where you think
+    each of the 10 teams will finish, and see how close you get once the real
+    season plays out.
+</p>
+
+<p>
+    <a class="button-link" href="/predict">Make your prediction</a>
+</p>
+
+<h2>The teams</h2>
+<ul class="team-list">
+    @foreach (var name in AustoPredictor.Data.AustoPredictorDbContext.TeamNames)
+    {
+        <li>@name</li>
+    }
+</ul>

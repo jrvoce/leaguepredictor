@@ -1,0 +1,13 @@
+## .NET
+bin/
+obj/
+*.user
+.vs/
+
+## Publish output
+PublishProfiles/*.pubxml.user
+publish/
+
+## Rider / VS Code
+.idea/
+.vscode/
