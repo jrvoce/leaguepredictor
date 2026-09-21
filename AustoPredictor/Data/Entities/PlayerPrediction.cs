@@ -22,5 +22,7 @@ public class PlayerPrediction
     /// <summary>Predicted final league position, 1 (champions) to 10 (bottom).</summary>
     public int PredictedPosition { get; set; }
 
+    public PredictionDesignation Designation { get; set; }
+
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
