@@ -1,4 +1,4 @@
-# AustoPredictor
+# LeaguePredictor
 
 A predictor for the Gallagher Premiership. Players pick where they think each of
 the 10 teams will finish; an admin manages players and locks predictions once the
@@ -7,11 +7,12 @@ and Entity Framework Core against SQL Server.
 
 ## Project structure
 
-The solution is now split by responsibility:
+The solution is split by responsibility:
 
-- `AustoPredictor.Api` — Blazor host, HTTP endpoints, auth, and app startup
-- `AustoPredictor.Data` — EF Core DbContext, repositories, and SQL Server setup
-- `AustoPredictor.Domain` — domain entities and core business types
+- `LeaguePredictor` — Blazor host, HTTP endpoints, authentication, and app startup
+- `LeaguePredictor.Api` — separate API host retained for API-specific deployment scenarios
+- `LeaguePredictor.Data` — EF Core DbContext, repositories, and SQL Server setup
+- `LeaguePredictor.Domain` — domain entities and core business types
 
 ## Running locally
 
@@ -23,7 +24,7 @@ stays in sync as long as the app can reach the database.
 To run:
 
 ```
-dotnet run --project AustoPredictor.Api/AustoPredictor.Api.csproj
+dotnet run --project LeaguePredictor/LeaguePredictor.csproj
 ```
 
 Then open `https://localhost:7155` (or the URL printed in the console).
@@ -36,7 +37,7 @@ PBKDF2 hash in configuration (`AdminAuth:PasswordHash`), not in plain text.
 **Initial admin password:** `zdgcDywdjEn6`
 
 Change it before sharing the site with players. To generate a new hash, use the
-`AustoPredictor.Api.Services.AdminPasswordHasher.Hash("your new password")` method
+`LeaguePredictor.Services.AdminPasswordHasher.Hash("your new password")` method
 — easiest via a throwaway `dotnet run` against a one-line Program.cs that references
 `AdminPasswordHasher`, or a small unit test. Then update `AdminAuth:PasswordHash`
 in `appsettings.json` (or override it in production — see below).
@@ -79,7 +80,7 @@ Note: that hostname resolves to a private IP address, so it's only reachable
 from inside monsterasp.net's hosting network — it could not be tested from this
 dev machine. The first real check happens once the site is actually deployed.
 
-1. In Visual Studio: right-click the `AustoPredictor` project → **Publish** →
+1. In Visual Studio: right-click the `LeaguePredictor` project → **Publish** →
    set up an **FTP/Web Deploy** profile with the credentials monsterasp.net
    gives you for the site, then publish. Make sure `appsettings.Production.json`
    is included in the publish output (it is by default) and that
