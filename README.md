@@ -5,6 +5,14 @@ the 10 teams will finish; an admin manages players and locks predictions once th
 season starts. Built with Blazor Web App (.NET 10, interactive server render mode)
 and Entity Framework Core against SQL Server.
 
+## Project structure
+
+The solution is now split by responsibility:
+
+- `AustoPredictor.Api` — Blazor host, HTTP endpoints, auth, and app startup
+- `AustoPredictor.Data` — EF Core DbContext, repositories, and SQL Server setup
+- `AustoPredictor.Domain` — domain entities and core business types
+
 ## Running locally
 
 The app connects to the SQL Server instance `JULES-PC`, database `AustoPredictor`,
@@ -15,7 +23,7 @@ stays in sync as long as the app can reach the database.
 To run:
 
 ```
-dotnet run --project AustoPredictor
+dotnet run --project AustoPredictor.Api/AustoPredictor.Api.csproj
 ```
 
 Then open `https://localhost:7155` (or the URL printed in the console).
@@ -28,8 +36,8 @@ PBKDF2 hash in configuration (`AdminAuth:PasswordHash`), not in plain text.
 **Initial admin password:** `zdgcDywdjEn6`
 
 Change it before sharing the site with players. To generate a new hash, use the
-`AustoPredictor.Services.AdminPasswordHasher.Hash("your new password")` method —
-easiest via a throwaway `dotnet run` against a one-line Program.cs that references
+`AustoPredictor.Api.Services.AdminPasswordHasher.Hash("your new password")` method
+— easiest via a throwaway `dotnet run` against a one-line Program.cs that references
 `AdminPasswordHasher`, or a small unit test. Then update `AdminAuth:PasswordHash`
 in `appsettings.json` (or override it in production — see below).
 

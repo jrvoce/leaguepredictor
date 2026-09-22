@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="AustoPredictor/AustoPredictor.csproj" />
+  <Project Path="AustoPredictor.Data/AustoPredictor.Data.csproj" />
+  <Project Path="AustoPredictor.Domain/AustoPredictor.Domain.csproj" />
+  <Project Path="AustoPrem/AustoPrem.csproj" />
+  <Project Path="AustoPrem.Api/AustoPrem.Api.csproj" />
 </Solution>
