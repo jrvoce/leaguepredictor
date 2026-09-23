@@ -1,6 +1,0 @@
-<Solution>
-  <Project Path="LeaguePredictor.Api/LeaguePredictor.Api.csproj" />
-  <Project Path="LeaguePredictor.Data/LeaguePredictor.Data.csproj" />
-  <Project Path="LeaguePredictor.Domain/LeaguePredictor.Domain.csproj" />
-  <Project Path="LeaguePredictor/LeaguePredictor.csproj" />
-</Solution>
