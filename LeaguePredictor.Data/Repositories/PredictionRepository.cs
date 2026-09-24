@@ -7,7 +7,11 @@ public interface IPredictionRepository
 {
     Task<List<Team>> GetTeamsAsync();
     Task<Dictionary<int, (int PredictedPosition, PredictionDesignation Designation)>> GetPredictionsForPlayerAsync(int playerId);
-    Task<SaveResult> SavePredictionsAsync(int playerId, IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions);
+    Task<Dictionary<BonusPredictionType, int>> GetBonusPredictionsForPlayerAsync(int playerId);
+    Task<SaveResult> SavePredictionsAsync(
+        int playerId,
+        IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions,
+        IReadOnlyDictionary<BonusPredictionType, int> bonusPredictions);
 }
 
 public enum SaveResult
@@ -36,9 +40,18 @@ public class PredictionRepository(IDbContextFactory<LeaguePredictorDbContext> co
             .ToDictionaryAsync(pp => pp.TeamId, pp => (pp.PredictedPosition, pp.Designation));
     }
 
+    public async Task<Dictionary<BonusPredictionType, int>> GetBonusPredictionsForPlayerAsync(int playerId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+        return await context.PlayerBonusPredictions
+            .Where(bp => bp.PlayerId == playerId)
+            .ToDictionaryAsync(bp => bp.Type, bp => bp.Value);
+    }
+
     public async Task<SaveResult> SavePredictionsAsync(
         int playerId,
-        IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions)
+        IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions,
+        IReadOnlyDictionary<BonusPredictionType, int> bonusPredictions)
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
@@ -61,7 +74,9 @@ public class PredictionRepository(IDbContextFactory<LeaguePredictorDbContext> co
             predictions.Values.Count(v => v.Designation == PredictionDesignation.Champion) == 1 &&
             predictions.Values.Count(v => v.Designation == PredictionDesignation.RunnerUp) == 1 &&
             predictions.Values.All(v => v.Designation is PredictionDesignation.None or PredictionDesignation.Champion or PredictionDesignation.RunnerUp) &&
-            predictions.Values.All(v => v.Designation == PredictionDesignation.None || v.PredictedPosition <= 4);
+            predictions.Values.All(v => v.Designation == PredictionDesignation.None || v.PredictedPosition <= 4) &&
+            Enum.GetValues<BonusPredictionType>().All(t => bonusPredictions.TryGetValue(t, out var bonus) && bonus >= 0) &&
+            bonusPredictions.Keys.All(k => Enum.IsDefined(k));
 
         if (!validSelection)
         {
@@ -82,6 +97,23 @@ public class PredictionRepository(IDbContextFactory<LeaguePredictorDbContext> co
                 TeamId = teamId,
                 PredictedPosition = prediction.PredictedPosition,
                 Designation = prediction.Designation,
+                UpdatedAtUtc = DateTime.UtcNow,
+            });
+        }
+
+        var existingBonuses = await context.PlayerBonusPredictions
+            .Where(bp => bp.PlayerId == playerId)
+            .ToListAsync();
+
+        context.PlayerBonusPredictions.RemoveRange(existingBonuses);
+
+        foreach (var (type, value) in bonusPredictions)
+        {
+            context.PlayerBonusPredictions.Add(new PlayerBonusPrediction
+            {
+                PlayerId = playerId,
+                Type = type,
+                Value = value,
                 UpdatedAtUtc = DateTime.UtcNow,
             });
         }

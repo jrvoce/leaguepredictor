@@ -88,6 +88,21 @@
             </tbody>
         </table>
 
+        <h2>Bonus Prediction</h2>
+        <div class="bonus-prediction">
+            <label for="bonus-total-points">Total points scored across all teams in the season:</label>
+            @if (selectedPlayer.IsLocked)
+            {
+                <span>@(bonusPredictions.TryGetValue(BonusPredictionType.TotalLeaguePoints, out var lockedPoints) ? lockedPoints.ToString("N0") : "")</span>
+            }
+            else
+            {
+                <input id="bonus-total-points" type="number" min="0" step="1"
+                       value="@(bonusPredictions.TryGetValue(BonusPredictionType.TotalLeaguePoints, out var points) ? points : null)"
+                       @onchange="e => OnBonusChanged(BonusPredictionType.TotalLeaguePoints, e)" />
+            }
+        </div>
+
         @if (!selectedPlayer.IsLocked)
         {
             <button @onclick="Save" disabled="@(!IsComplete)">Save prediction</button>
@@ -111,10 +126,13 @@
     // position (1-10) -> designation
     private Dictionary<int, PredictionDesignation> positionToDesignation = new();
 
+    private Dictionary<BonusPredictionType, int> bonusPredictions = new();
+
     private string? statusMessage;
     private bool saveSucceeded;
 
     private bool IsComplete =>
+        bonusPredictions.ContainsKey(BonusPredictionType.TotalLeaguePoints) &&
         positionToTeamId.Count == 10 &&
         positionToTeamId.Values.All(v => v.HasValue) &&
         positionToDesignation.Values.Count(v => v == PredictionDesignation.Champion) == 1 &&
@@ -136,6 +154,7 @@
             selectedPlayer = null;
             positionToTeamId.Clear();
             positionToDesignation.Clear();
+            bonusPredictions.Clear();
             return;
         }
 
@@ -145,6 +164,28 @@
         var existing = await PredictionService.GetPredictionsForPlayerAsync(playerId);
         positionToTeamId = existing.ToDictionary(kvp => kvp.Value.PredictedPosition, kvp => (int?)kvp.Key);
         positionToDesignation = existing.ToDictionary(kvp => kvp.Value.PredictedPosition, kvp => kvp.Value.Designation);
+        if (selectedPlayer is { IsLocked: false })
+        {
+            // Designations saved below 4th (before that restriction existed) have no dropdown to clear them.
+            foreach (var position in positionToDesignation.Keys.Where(p => p > 4).ToList())
+            {
+                positionToDesignation.Remove(position);
+            }
+        }
+
+        bonusPredictions = await PredictionService.GetBonusPredictionsForPlayerAsync(playerId);
+    }
+
+    private void OnBonusChanged(BonusPredictionType type, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value) && value >= 0)
+        {
+            bonusPredictions[type] = value;
+        }
+        else
+        {
+            bonusPredictions.Remove(type);
+        }
     }
 
     private void OnTeamChanged(int position, ChangeEventArgs e)
@@ -214,14 +255,14 @@
         var predictions = positionToTeamId.ToDictionary(
             kvp => kvp.Value!.Value,
             kvp => (kvp.Key, positionToDesignation.GetValueOrDefault(kvp.Key)));
-        var result = await PredictionService.SavePredictionsAsync(selectedPlayerId.Value, predictions);
+        var result = await PredictionService.SavePredictionsAsync(selectedPlayerId.Value, predictions, bonusPredictions);
 
         saveSucceeded = result == SaveResult.Success;
         statusMessage = result switch
         {
             SaveResult.Success => "Your prediction has been saved.",
             SaveResult.PlayerLocked => "Your selection is locked and can no longer be changed.",
-            SaveResult.InvalidSelection => "Use every team exactly once, with one Champion and one Runner Up.",
+            SaveResult.InvalidSelection => "Use every team exactly once, with one Champion and one Runner Up, and enter your bonus prediction.",
             _ => "Something went wrong saving your prediction. Please try again.",
         };
 

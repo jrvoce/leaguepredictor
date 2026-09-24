@@ -22,4 +22,6 @@ public class Player
     public DateTime? LockedAtUtc { get; set; }
 
     public ICollection<PlayerPrediction> Predictions { get; set; } = new List<PlayerPrediction>();
+
+    public ICollection<PlayerBonusPrediction> BonusPredictions { get; set; } = new List<PlayerBonusPrediction>();
 }
