@@ -44,7 +44,7 @@
                 @for (var i = 1; i <= 10; i++)
                 {
                     var position = i;
-                    <tr>
+                    <tr @key="position">
                         <td>@position</td>
                         <td>
                             @if (selectedPlayer.IsLocked)
@@ -55,10 +55,10 @@
                             {
                                 <select value="@positionToTeamId.GetValueOrDefault(position)"
                                         @onchange="e => OnTeamChanged(position, e)">
-                                    <option value="">-- Select team --</option>
+                                    <option value="" @key="-1">-- Select team --</option>
                                     @foreach (var team in GetAvailableTeams(position))
                                     {
-                                        <option value="@team.Id">@team.Name</option>
+                                        <option @key="team.Id" value="@team.Id">@team.Name</option>
                                     }
                                 </select>
                             }
@@ -68,13 +68,17 @@
                             {
                                 @GetDesignationAbbreviation(positionToDesignation.GetValueOrDefault(position))
                             }
-                            else
+@*                             else if (position > 4)
+                            {
+                                @GetDesignationAbbreviation(PredictionDesignation.None)
+                            } *@
+                            else if (position <= 4)
                             {
                                 <select value="@((int)positionToDesignation.GetValueOrDefault(position))"
                                         @onchange="e => OnDesignationChanged(position, e)">
                                     @foreach (var designation in GetAvailableDesignations(position))
                                     {
-                                        <option value="@((int)designation)">@GetDesignationAbbreviation(designation)</option>
+                                        <option @key="designation" value="@((int)designation)">@GetDesignationAbbreviation(designation)</option>
                                     }
                                 </select>
                             }
