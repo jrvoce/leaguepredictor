@@ -68,7 +68,11 @@
                             {
                                 @GetDesignationAbbreviation(positionToDesignation.GetValueOrDefault(position))
                             }
-                            else
+@*                             else if (position > 4)
+                            {
+                                @GetDesignationAbbreviation(PredictionDesignation.None)
+                            } *@
+                            else if (position <= 4)
                             {
                                 <select value="@((int)positionToDesignation.GetValueOrDefault(position))"
                                         @onchange="e => OnDesignationChanged(position, e)">

@@ -60,7 +60,8 @@ public class PredictionRepository(IDbContextFactory<LeaguePredictorDbContext> co
             predictions.Values.Select(v => v.PredictedPosition).OrderBy(v => v).SequenceEqual(Enumerable.Range(1, teamIds.Count)) &&
             predictions.Values.Count(v => v.Designation == PredictionDesignation.Champion) == 1 &&
             predictions.Values.Count(v => v.Designation == PredictionDesignation.RunnerUp) == 1 &&
-            predictions.Values.All(v => v.Designation is PredictionDesignation.None or PredictionDesignation.Champion or PredictionDesignation.RunnerUp);
+            predictions.Values.All(v => v.Designation is PredictionDesignation.None or PredictionDesignation.Champion or PredictionDesignation.RunnerUp) &&
+            predictions.Values.All(v => v.Designation == PredictionDesignation.None || v.PredictedPosition <= 4);
 
         if (!validSelection)
         {
