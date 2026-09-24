@@ -8,6 +8,7 @@ public class LeaguePredictorDbContext(DbContextOptions<LeaguePredictorDbContext>
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<Player> Players => Set<Player>();
     public DbSet<PlayerPrediction> PlayerPredictions => Set<PlayerPrediction>();
+    public DbSet<PlayerBonusPrediction> PlayerBonusPredictions => Set<PlayerBonusPrediction>();
 
     /// <summary>
     /// The 10 Gallagher Premiership teams for the season this predictor covers.
@@ -61,6 +62,16 @@ public class LeaguePredictorDbContext(DbContextOptions<LeaguePredictorDbContext>
 
             entity.HasIndex(pp => new { pp.PlayerId, pp.TeamId }).IsUnique();
             entity.HasIndex(pp => new { pp.PlayerId, pp.PredictedPosition }).IsUnique();
+        });
+
+        modelBuilder.Entity<PlayerBonusPrediction>(entity =>
+        {
+            entity.HasOne(bp => bp.Player)
+                .WithMany(p => p.BonusPredictions)
+                .HasForeignKey(bp => bp.PlayerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(bp => new { bp.PlayerId, bp.Type }).IsUnique();
         });
     }
 }

@@ -45,6 +45,7 @@ th, td { padding: 0.85rem 0.75rem; border-bottom: 1px solid var(--line); text-al
 th { color: var(--green-dark); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
 .predict-table td:first-child { width: 7rem; color: var(--green); font-family: 'Space Grotesk', sans-serif; font-weight: 700; }
 .predict-table select { min-width: 12rem; }
+.bonus-prediction { margin-bottom: 1.5rem; }
 .locked-message { padding: 0.85rem 1rem; border-left: 4px solid var(--gold); background: #fff8e8; color: #77551d; }
 .success-message, .error-message { padding: 0.75rem 1rem; border-left: 4px solid; font-weight: 600; }
 .success-message { border-color: var(--green); background: #eaf6f0; color: var(--green-dark); }

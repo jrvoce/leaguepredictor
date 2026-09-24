@@ -7,7 +7,11 @@ public interface IPredictionService
 {
     Task<List<Team>> GetTeamsAsync();
     Task<Dictionary<int, (int PredictedPosition, PredictionDesignation Designation)>> GetPredictionsForPlayerAsync(int playerId);
-    Task<SaveResult> SavePredictionsAsync(int playerId, IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions);
+    Task<Dictionary<BonusPredictionType, int>> GetBonusPredictionsForPlayerAsync(int playerId);
+    Task<SaveResult> SavePredictionsAsync(
+        int playerId,
+        IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions,
+        IReadOnlyDictionary<BonusPredictionType, int> bonusPredictions);
 }
 
 public enum SaveResult
@@ -25,9 +29,15 @@ public class PredictionService(IPredictionRepository repository) : IPredictionSe
     public Task<Dictionary<int, (int PredictedPosition, PredictionDesignation Designation)>> GetPredictionsForPlayerAsync(int playerId)
         => repository.GetPredictionsForPlayerAsync(playerId);
 
-    public async Task<SaveResult> SavePredictionsAsync(int playerId, IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions)
+    public Task<Dictionary<BonusPredictionType, int>> GetBonusPredictionsForPlayerAsync(int playerId)
+        => repository.GetBonusPredictionsForPlayerAsync(playerId);
+
+    public async Task<SaveResult> SavePredictionsAsync(
+        int playerId,
+        IReadOnlyDictionary<int, (int PredictedPosition, PredictionDesignation Designation)> predictions,
+        IReadOnlyDictionary<BonusPredictionType, int> bonusPredictions)
     {
-        var result = await repository.SavePredictionsAsync(playerId, predictions);
+        var result = await repository.SavePredictionsAsync(playerId, predictions, bonusPredictions);
         return result switch
         {
             LeaguePredictor.Data.Repositories.SaveResult.Success => SaveResult.Success,
